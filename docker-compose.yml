@@ -1,0 +1,127 @@
+version: '3.8'
+
+networks:
+  aponti-net:
+    driver: bridge
+
+volumes:
+  pgdata:
+  redisdata:
+  prometheusdata:
+  grafanadata:
+  localstackdata:
+
+services:
+  # --- BANCOS DE DADOS E CACHE ---
+  postgres:
+    image: postgres:16-alpine
+    container_name: contratos-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: contratos_db
+      POSTGRES_USER: contratos_user
+      POSTGRES_PASSWORD: contratos_pass123
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U contratos_user -d contratos_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - aponti-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: contratos-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - aponti-net
+
+  # --- APLICAÇÕES E MICROSSERVIÇOS ---
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${DOCKERHUB_USERNAME:-local}/contratos-api:latest
+    container_name: contratos-api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: contratos_db
+      DB_USER: contratos_user
+      DB_PASSWORD: contratos_pass123
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - aponti-net
+
+  # --- OBSERVABILIDADE (PROMETHEUS & GRAFANA) ---
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: contratos-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheusdata:/prometheus
+    ports:
+      - "9090:9090"
+    depends_on:
+      - app
+    networks:
+      - aponti-net
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: contratos-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: false
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafanadata:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - aponti-net
+
+  # --- SIMULADOR DE NUVEM (LOCALSTACK) ---
+  localstack:
+    image: localstack/localstack:3.7
+    container_name: contratos-localstack
+    restart: unless-stopped
+    environment:
+      SERVICES: s3,sqs,dynamodb
+      DEBUG: 0
+    ports:
+      - "4566:4566"
+    volumes:
+      - localstackdata:/var/lib/localstack
+    networks:
+      - aponti-net
