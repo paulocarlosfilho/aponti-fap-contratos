@@ -117,7 +117,7 @@ services:
     container_name: contratos-localstack
     restart: unless-stopped
     environment:
-      SERVICES: s3,sqs,dynamodb
+      SERVICES: s3,ec2
       DEBUG: 0
     ports:
       - "4566:4566"
