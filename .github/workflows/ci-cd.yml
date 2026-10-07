@@ -38,7 +38,7 @@ jobs:
           cache: 'npm'
 
       - name: Install Dependencies
-        run: npm ci
+        run: npm ci --legacy-peer-deps
 
       - name: Run Snyk SAST
         uses: snyk/actions/node@master
@@ -64,7 +64,7 @@ jobs:
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
-          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN_CONTRATOS }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -76,13 +76,13 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: |
-           paulocarlosfilho/aponti-api-fap-desafio-final-pratico:latest
-           paulocarlosfilho/aponti-api-fap-desafio-final-pratico:1.0.1
+           paulocarlosfilho/contratos-api:latest
+           paulocarlosfilho/contratos-api:1.0.1
 
       - name: Run Trivy vulnerability scanner on Docker Image
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: 'paulocarlosfilho/aponti-api-fap-desafio-final-pratico:1.0.1'
+          image-ref: 'paulocarlosfilho/contratos-api:1.0.1'
           format: 'table'
           exit-code: '0'
           severity: 'CRITICAL,HIGH'
@@ -142,7 +142,7 @@ jobs:
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
-          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN_CONTRATOS }}
 
       - name: Start App via Docker Compose (Staging)
         run: |
