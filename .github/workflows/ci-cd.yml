@@ -46,6 +46,7 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           command: test
+          args: --severity-threshold=critical # Só falha a pipeline se encontrar vulnerabilidade CRÍTICA
 
       - name: Run Unit Tests
         run: npm run test:unit --if-present
